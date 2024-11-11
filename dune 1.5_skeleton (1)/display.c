@@ -25,21 +25,29 @@ void display_resource(RESOURCE resource);
 void display_map(char map[N_LAYER][MAP_HEIGHT][MAP_WIDTH]);
 void display_cursor(CURSOR cursor);
 void display_system_message();
-void display_object_info();
-void display_commands();
+void display_object_info(bool show_info, CURSOR cursor, char map[N_LAYER][MAP_HEIGHT][MAP_WIDTH]);
+void display_commands(CURSOR cursor, char map[N_LAYER][MAP_HEIGHT][MAP_WIDTH], bool show_1);
+void set_background_color(int color, unsigned short back);
+void set_color_map(int color, unsigned short back);
+void printc_map(POSITION pos, char ch, int color, unsigned short back);
 
 // display 함수: 게임의 모든 화면 요소를 출력
 void display(
     RESOURCE resource,
     char map[N_LAYER][MAP_HEIGHT][MAP_WIDTH],
-    CURSOR cursor)
+    CURSOR cursor,
+    bool show_1)
 {
     display_resource(resource);   // 자원 상태 표시
     display_map(map);             // 맵 표시
     display_cursor(cursor);       // 커서 표시
     display_system_message();     // 시스템 메시지 표시
-    display_object_info();        // 오브젝트 정보 표시
-    display_commands();           // 명령어 표시
+    display_object_info(show_1, cursor, map);        // 오브젝트 정보 표시
+    display_commands(cursor, map, show_1);           // 명령어 표시
+}
+
+void set_background_color(int color, unsigned short back) {
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color | (back << 4));
 }
 
 // 자원 상태를 표시하는 함수
@@ -65,73 +73,144 @@ void project(char src[N_LAYER][MAP_HEIGHT][MAP_WIDTH], char dest[MAP_HEIGHT][MAP
     }
 }
 
+// 유닛 색상 결정 함수
+int get_unit_color(char player) {
+    if (player == 'F') {
+        return COLOR_BLUE;
+    }
+    else if (player == 'S') {
+        return COLOR_BLUE;
+    }
+    else if (player == 'H') {
+        return COLOR_BLUE;
+    }
+    else if (player == 'H') {
+        return COLOR_RED;
+    }
+    else if (player == 'f') {
+        return COLOR_RED;
+    }
+    else if (player == 't') {
+        return COLOR_RED;
+    }
+    else if (player == 'h') {
+        return COLOR_RED;
+    }
+    else if (player == 'W') {
+        return COLOR_WORM;
+    }
+    return COLOR_DEFAULT;
+}
+
+// 건물 색상 결정 함수
+int get_building_color(char player) {
+    if (player == 'B') {
+        return COLOR_BLUE;
+    }
+    else if (player == 'S') {
+        return COLOR_BLUE;
+    }
+    else if (player == 'b') {
+        return COLOR_BLUE;
+    }
+    else if (player == 'D') {
+        return COLOR_BLUE;
+    }
+    else if (player == 'G') {
+        return COLOR_BLUE;
+    }
+    else if (player == 'a') {
+        return COLOR_RED;
+    }
+    else if (player == 'f') {
+        return COLOR_RED;
+    }
+    else if (player == 'v') {
+        return COLOR_RED;
+    }
+    else if (player == 'd') {
+        return COLOR_RED;
+    }
+    else if (player == 'g') {
+        return COLOR_RED;
+    }
+    else if (player == 'P') {
+        return COLOR_PLATE;
+    }
+    else if (player == 'p') {
+        return COLOR_PLATE;
+    }
+    else if (player == 'R') {
+        return COLOR_ROCK;
+    }
+    else if (player == '9') {
+        return COLOR_SPICE;
+    }
+    else if (player == '8') {
+        return COLOR_SPICE;
+    }
+    else if (player == '7') {
+        return COLOR_SPICE;
+    }
+    else if (player == '6') {
+        return COLOR_SPICE;
+    }
+    else if (player == '5') {
+        return COLOR_SPICE;
+    }
+    else if (player == '4') {
+        return COLOR_SPICE;
+    }
+    else if (player == '3') {
+        return COLOR_SPICE;
+    }
+    else if (player == '2') {
+        return COLOR_SPICE;
+    }
+    else if (player == '1') {
+        return COLOR_SPICE;
+    }
+
+    return COLOR_DEFAULT;
+}
+
 // 맵을 화면에 출력하는 함수
 void display_map(char map[N_LAYER][MAP_HEIGHT][MAP_WIDTH]) {
     project(map, backbuf);  // 백 버퍼에 맵 정보를 결합
 
     for (int i = 0; i < MAP_HEIGHT; i++) {
         for (int j = 0; j < MAP_WIDTH; j++) {
-            if (frontbuf[i][j] != backbuf[i][j]) {  // 변경된 위치만 업데이트
-                POSITION pos = { i, j };
-                set_color(frontbuf[i][j]);
-                printc(padd(map_pos, pos), backbuf[i][j], COLOR_DEFAULT);
+            POSITION pos = { i, j };
+            unsigned short back = COLOR_DEFAULT;
+            int color = COLOR_DEFAULT;
+
+            // 변경된 위치만 업데이트
+            if (frontbuf[i][j] != backbuf[i][j]) {
+                if (backbuf[i][j] == ' ' || backbuf[i][j] == '#') {
+                    printc(padd(map_pos, pos), backbuf[i][j], COLOR_DEFAULT);
+                }
+                else {
+                    // BUILDING에 대한 색상과 배경색 설정
+                    if (map[0][i][j] != ' ') {
+                        color = get_building_color(map[0][i][j]);
+                        back = color;
+                    }
+                    // UNIT에 대한 색상과 배경색 설정
+                    else if (map[1][i][j] != ' ') {
+                        color = get_unit_color(map[1][i][j]);
+                        back = color;
+                    }
+
+                    set_color_map(COLOR_DEFAULT, back);
+
+                    // 배경색과 텍스트 색상을 분리하여 출력
+                    printc_map(padd(map_pos, pos), backbuf[i][j], COLOR_DEFAULT, back);
+                }
             }
+
             frontbuf[i][j] = backbuf[i][j];  // 프론트 버퍼를 백 버퍼로 업데이트
         }
     }
-
-    // 좌하단에 플레이어 본부
-    set_color_map(COLOR_DEFAULT, COLOR_BLUE);
-    printc_map((POSITION) { MAP_HEIGHT - 2, 1 }, 'B', COLOR_DEFAULT, COLOR_BLUE);
-    printc_map((POSITION) { MAP_HEIGHT - 1, 1 }, 'B', COLOR_DEFAULT, COLOR_BLUE);
-    printc_map((POSITION) { MAP_HEIGHT - 2, 2 }, 'B', COLOR_DEFAULT, COLOR_BLUE);
-    printc_map((POSITION) { MAP_HEIGHT - 1, 2 }, 'B', COLOR_DEFAULT, COLOR_BLUE);
-
-    set_color_map(COLOR_DEFAULT, COLOR_BLUE);
-    printc_map((POSITION) { MAP_HEIGHT - 3, 1 }, 'H', COLOR_DEFAULT, COLOR_BLUE);
-    set_color_map(COLOR_DEFAULT, COLOR_SPICE);
-    printc_map((POSITION) { MAP_HEIGHT - 5, 1 }, '5', COLOR_DEFAULT, COLOR_SPICE);
-    set_color_map(COLOR_PLATE, COLOR_PLATE);
-    printc_map((POSITION) { MAP_HEIGHT - 1, 3 }, 'P', COLOR_PLATE, COLOR_PLATE);
-    printc_map((POSITION) { MAP_HEIGHT - 2, 4 }, 'P', COLOR_PLATE, COLOR_PLATE);
-    printc_map((POSITION) { MAP_HEIGHT - 2, 3 }, 'P', COLOR_PLATE, COLOR_PLATE);
-    printc_map((POSITION) { MAP_HEIGHT - 1, 4 }, 'P', COLOR_PLATE, COLOR_PLATE);
-
-    // 우상단에 AI 본부
-    set_color_map(COLOR_DEFAULT, COLOR_RED);
-    printc_map((POSITION) { 2, MAP_WIDTH - 2 }, 'B', COLOR_DEFAULT, COLOR_RED);
-    printc_map((POSITION) { 2, MAP_WIDTH - 3 }, 'B', COLOR_DEFAULT, COLOR_RED);
-    printc_map((POSITION) { 3, MAP_WIDTH - 2 }, 'B', COLOR_DEFAULT, COLOR_RED);
-    printc_map((POSITION) { 3, MAP_WIDTH - 3 }, 'B', COLOR_DEFAULT, COLOR_RED);
-    
-    set_color_map(COLOR_DEFAULT, COLOR_RED);
-    printc_map((POSITION) { 4, MAP_WIDTH - 2 }, 'H', COLOR_DEFAULT, COLOR_RED);
-    set_color_map(COLOR_DEFAULT, COLOR_SPICE);
-    printc_map((POSITION) { 6, MAP_WIDTH - 2 }, '5', COLOR_DEFAULT, COLOR_SPICE);
-    set_color_map(COLOR_PLATE, COLOR_PLATE);
-    printc_map((POSITION) { 2, MAP_WIDTH - 4 }, 'P', COLOR_PLATE, COLOR_PLATE);
-    printc_map((POSITION) { 3, MAP_WIDTH - 4 }, 'P', COLOR_PLATE, COLOR_PLATE);
-    printc_map((POSITION) { 2, MAP_WIDTH - 5 }, 'P', COLOR_PLATE, COLOR_PLATE);
-    printc_map((POSITION) { 3, MAP_WIDTH - 5 }, 'P', COLOR_PLATE, COLOR_PLATE);
-
-    // 샌드웜 배치
-    set_color_map(COLOR_DEFAULT, COLOR_WORM);
-    printc_map((POSITION) { 3, 7 }, 'W', COLOR_DEFAULT, COLOR_WORM);
-    printc_map((POSITION) { 13, MAP_WIDTH - 13 }, 'W', COLOR_DEFAULT, COLOR_WORM);
-
-    // 바위 배치
-    set_color_map(COLOR_ROCK, COLOR_ROCK);
-    printc_map((POSITION) { 14, 8 }, 'R', COLOR_ROCK, COLOR_ROCK);
-    printc_map((POSITION) { 5, MAP_WIDTH - 8 }, 'R', COLOR_ROCK, COLOR_ROCK);
-    printc_map((POSITION) { 6, 21 }, 'R', COLOR_ROCK, COLOR_ROCK);
-    printc_map((POSITION) { 5, 21 }, 'R', COLOR_ROCK, COLOR_ROCK);
-    printc_map((POSITION) { 6, 22 }, 'R', COLOR_ROCK, COLOR_ROCK);
-    printc_map((POSITION) { 5, 22 }, 'R', COLOR_ROCK, COLOR_ROCK);
-    printc_map((POSITION) { 15, MAP_WIDTH - 5 }, 'R', COLOR_ROCK, COLOR_ROCK);
-    printc_map((POSITION) { 13, MAP_WIDTH - 21 }, 'R', COLOR_ROCK, COLOR_ROCK);
-    printc_map((POSITION) { 14, MAP_WIDTH - 21 }, 'R', COLOR_ROCK, COLOR_ROCK);
-    printc_map((POSITION) { 13, MAP_WIDTH - 22 }, 'R', COLOR_ROCK, COLOR_ROCK);
-    printc_map((POSITION) { 14, MAP_WIDTH - 22 }, 'R', COLOR_ROCK, COLOR_ROCK);
 }
 
 // 커서를 맵에 표시하는 함수
@@ -139,11 +218,27 @@ void display_cursor(CURSOR cursor) {
     POSITION prev = cursor.previous;
     POSITION curr = cursor.current;
 
-    char ch = frontbuf[prev.row][prev.column];
-    printc(padd(map_pos, prev), ch, COLOR_DEFAULT);
+    char prev_ch = frontbuf[prev.row][prev.column];
+    unsigned short prev_back = COLOR_DEFAULT;
 
-    ch = frontbuf[curr.row][curr.column];
-    printc(padd(map_pos, curr), ch, COLOR_CURSOR);
+    if (prev_ch != ' ' && prev_ch != '#') {
+        prev_back = get_building_color(prev_ch);
+        if (prev_back == COLOR_DEFAULT) {
+            prev_back = get_unit_color(prev_ch);
+        }
+    }
+
+    if (prev_ch != ' ' && prev_ch != '#') {
+        printc_map(padd(map_pos, prev), prev_ch, COLOR_DEFAULT, prev_back);
+    }
+    else {
+        printc(padd(map_pos, prev), prev_ch, COLOR_DEFAULT);
+    }
+
+    char curr_ch = frontbuf[curr.row][curr.column];
+    unsigned short curr_back = COLOR_CURSOR;
+
+    printc_map(padd(map_pos, curr), curr_ch, COLOR_DEFAULT, curr_back);
 }
 
 // 시스템 메시지 출력 함수
@@ -156,7 +251,11 @@ void display_system_message() {
     printf("\n");
 
     for (int i = 0; i < 5; i++) {
-        printf("#                                                          #\n");
+        for (int j = 0; j < 60; j++) {
+            if (j == 0) printf("#");
+            else if (j == 59) printf("#\n");
+            else printf(" ");
+        }
     }
 
     for (int i = 0; i < 60; i++) {
@@ -166,7 +265,7 @@ void display_system_message() {
 }
 
 // 상태창 출력 함수
-void display_object_info() {
+void display_object_info(bool show_info, CURSOR cursor, char map[N_LAYER][MAP_HEIGHT][MAP_WIDTH]) {
     set_color(COLOR_OBJECT_INFO);
     gotoxy(object_info_pos);
 
@@ -174,10 +273,138 @@ void display_object_info() {
         printf("#");
     }
     printf("\n");
+    static POSITION last_cursor_pos = { -1, -1 };
 
-    for (int i = 0; i < MAP_HEIGHT - 2; i++) {
-        gotoxy((POSITION) { object_info_pos.row + 1 + i, object_info_pos.column });
-        printf("#                                                      #\n");
+    if (cursor.current.row != last_cursor_pos.row || cursor.current.column != last_cursor_pos.column) {
+        for (int i = 0; i < MAP_HEIGHT - 2; i++) {
+            gotoxy((POSITION) { object_info_pos.row + 2 + i, object_info_pos.column + 2 });
+            printf("                                                \n");
+        }
+    }
+
+    if (show_info) {
+        int row = cursor.current.row;
+        int col = cursor.current.column;
+
+        gotoxy((POSITION) { object_info_pos.row + 2, object_info_pos.column + 2 });
+
+        char ch = frontbuf[row][col];
+
+        if (ch != ' ') {
+            if (map[0][row][col] != ' ') {
+                char building_type = map[0][row][col];
+                switch (building_type) {
+                case 'B':
+                    printf("(%d, %d)에 위치한 atreides_Barracks\n", row, col);
+                    break;
+                case 'S':
+                    printf("(%d, %d)에 위치한 atreides_Shelter\n", row, col);
+                    break;
+                case 'b':
+                    printf("(%d, %d)에 위치한 atreides_Base\n", row, col);
+                    break;
+                case 'P':
+                    printf("(%d, %d)에 위치한 atreides_Plant\n", row, col);
+                    break;
+                case 'D':
+                    printf("(%d, %d)에 위치한 atreides_Dormitory\n", row, col);
+                    break;
+                case 'G':
+                    printf("(%d, %d)에 위치한 atreides_Garage\n", row, col);
+                    break;
+                case 'a':
+                    printf("(%d, %d)에 위치한 harkonnen_Arena\n", row, col);
+                    break;
+                case 'f':
+                    printf("(%d, %d)에 위치한 harkonnen_Factory\n", row, col);
+                    break;
+                case 'v':
+                    printf("(%d, %d)에 위치한 harkonnen_Base\n", row, col);
+                    break;
+                case 'p':
+                    printf("(%d, %d)에 위치한 harkonnen_Plant\n", row, col);
+                    break;
+                case 'd':
+                    printf("(%d, %d)에 위치한 harkonnen_Dormitory\n", row, col);
+                    break;;
+                case 'g':
+                    printf("(%d, %d)에 위치한 harkonnen_Garage\n", row, col);
+                    break;
+                case 'R':
+                    printf("바위처럼 단단하게\n");
+                    break;
+                case '9':
+                    printf("(%d, %d)에 위치한 spice 매장량 : %c\n", row, col, map[0][row][col]);
+                    break;
+                case '8':
+                    printf("(%d, %d)에 위치한 spice 매장량 : %c\n", row, col, map[0][row][col]);
+                    break;
+                case '7':
+                    printf("(%d, %d)에 위치한 spice 매장량 : %c\n", row, col, map[0][row][col]);
+                    break;
+                case '6':
+                    printf("(%d, %d)에 위치한 spice 매장량 : %c\n", row, col, map[0][row][col]);
+                    break;
+                case '5':
+                    printf("(%d, %d)에 위치한 spice 매장량 : %c\n", row, col, map[0][row][col]);
+                    break;
+                case '4':
+                    printf("(%d, %d)에 위치한 spice 매장량 : %c\n", row, col, map[0][row][col]);
+                    break;
+                case '3':
+                    printf("(%d, %d)에 위치한 spice 매장량 : %c\n", row, col, map[0][row][col]);
+                    break;
+                case '2':
+                    printf("(%d, %d)에 위치한 spice 매장량 : %c\n", row, col, map[0][row][col]);
+                    break;
+                case '1':
+                    printf("(%d, %d)에 위치한 spice 매장량 : %c\n", row, col, map[0][row][col]);
+                    break;
+                case '0':
+                    printf("(%d, %d)에 위치한 spice 매장량 : %c\n", row, col, map[0][row][col]);
+                    break;
+                default:
+                    break;
+                }
+            }
+            else if (map[1][row][col] != ' ') {
+                char unit_type = map[1][row][col];
+                switch (unit_type) {
+                case 'S':
+                    printf("(%d, %d)에 위치한 atreides_Soldier\n", row, col);
+                    break;
+                case 'F':
+                    printf("(%d, %d)에 위치한 atreides_Fremen\n", row, col);
+                    break;
+                case 'H':
+                    printf("(%d, %d)에 위치한 atreides_Harvester\n", row, col);
+                    break;
+                case 'f':
+                    printf("(%d, %d)에 위치한 harkonnen_Fighter\n", row, col);
+                    break;
+                case 't':
+                    printf("(%d, %d)에 위치한 harkonnen_HeavyTank\n", row, col);
+                    break;
+                case 'h':
+                    printf("(%d, %d)에 위치한 harkonnen_Harvester\n", row, col);
+                    break;
+                case 'W':
+                    printf("(%d, %d)에 위치한 Sandworm\n", row, col);
+                    break;
+                default:
+                    break;
+                }
+            }
+        }
+        else {
+            printf("사막 지형 : 건물을 지을 수 없습니다.\n");
+        }
+
+        last_cursor_pos = cursor.current;
+    }
+    else {
+        gotoxy((POSITION) { object_info_pos.row + 2, object_info_pos.column + 2 });
+        printf("                                                    ");
     }
 
     gotoxy((POSITION) { object_info_pos.row + MAP_HEIGHT - 1, object_info_pos.column });
@@ -185,10 +412,17 @@ void display_object_info() {
         printf("#");
     }
     printf("\n");
+
+    for (int i = 1; i < MAP_HEIGHT - 1; i++) {
+        gotoxy((POSITION) { object_info_pos.row + i, object_info_pos.column });
+        printf("#");
+        gotoxy((POSITION) { object_info_pos.row + i, object_info_pos.column + 55 });
+        printf("#");
+    }
 }
 
 // 명령창 출력 함수
-void display_commands() {
+void display_commands(CURSOR cursor, char map[N_LAYER][MAP_HEIGHT][MAP_WIDTH], bool show_1) {
     set_color(COLOR_COMMAND);
     gotoxy(command_pos);
 
@@ -200,6 +434,72 @@ void display_commands() {
     for (int i = 0; i < 5; i++) {
         gotoxy((POSITION) { command_pos.row + 1 + i, command_pos.column });
         printf("#                                                      #\n");
+    }
+  
+    if (show_1) {
+        int row = cursor.current.row;
+        int col = cursor.current.column;
+
+        gotoxy((POSITION) { command_pos.row + 2, command_pos.column + 2 });
+
+        char ch = frontbuf[row][col];
+
+        if (ch != ' ') {
+            if (map[0][row][col] != ' ') {
+                char building_type = map[0][row][col];
+                switch (building_type) {
+                case 'B':
+                    printf("S : 보병 생산\n");
+                    break;
+                case 'S':
+                    printf("F : 프레맨 생산\n");
+                    break;
+                case 'b':
+                    printf("H : 하베스터 생산\n");
+                    break;
+                case 'a':
+                    printf("F : 투사 생산\n");
+                    break;
+                case 'f':
+                    printf("T : 중전차 생산\n");
+                    break;
+                case 'v':
+                    printf("H : 하베스터 생산\n");
+                    break;
+                default:
+                    break;
+                }
+            }
+            else if (map[1][row][col] != ' ') {
+                char unit_type = map[1][row][col];
+                switch (unit_type) {
+                case 'S':
+                    printf("M : 이동 / P : 순찰\n");
+                    break;
+                case 'F':
+                    printf("M : 이동 / P : 순찰\n");
+                    break;
+                case 'H':
+                    printf("M : 이동 / H : 하베스팅\n");
+                    break;
+                case 'f':
+                    printf("M : 이동 / P : 순찰\n");
+                    break;
+                case 't':
+                    printf("M : 이동 / P : 순찰\n");
+                    break;
+                case 'h':
+                    printf("M : 이동 / H : 하베스팅\n");
+                    break;
+                default:
+                    break;
+                }
+            }
+        }
+    }
+    else {
+        gotoxy((POSITION) { command_pos.row + 2, command_pos.column + 2 });
+        printf("INFO: 아무 명령도 없습니다.");
     }
 
     gotoxy((POSITION) { command_pos.row + 6, command_pos.column });
