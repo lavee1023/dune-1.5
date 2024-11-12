@@ -170,6 +170,9 @@ int get_building_color(char player) {
     else if (player == '1') {
         return COLOR_SPICE;
     }
+    else if (player == '0') {
+        return COLOR_SPICE;
+    }
 
     return COLOR_DEFAULT;
 }

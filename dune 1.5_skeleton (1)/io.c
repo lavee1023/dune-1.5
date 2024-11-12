@@ -36,7 +36,7 @@ void printc_map(POSITION pos, char ch, int color, unsigned short back) {
 		set_color(color);  // 글자색만 설정
 	}
 	else if (back >= 0) {
-		set_background_color(back);  // 배경색만 설정
+		set_background_color(COLOR_DEFAULT, COLOR_BACKGROUND);  // 배경색만 설정
 	}
 	gotoxy(pos);  // 커서 위치 이동
 	printf("%c", ch);  // 문자 출력

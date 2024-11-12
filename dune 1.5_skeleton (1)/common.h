@@ -15,7 +15,6 @@
 #define MAP_HEIGHT	18
 #define MAX_UNITS 7 
 
-
 /* ================= 위치와 방향 =================== */
 // 맵에서 위치를 나타내는 구조체
 typedef struct {
@@ -87,41 +86,51 @@ typedef struct {
 
 //* ================= 건물 및 유닛 구조체 정의 =================== */
 
-// 건물의 정보를 담는 구조체 (일반 건물 및 특수 건물 통합)
 typedef struct {
     char name[20];       // 이름
-    int build_cost;      // 건설 비용  (없음 또는 무한대는 -1로 표시)
-    int durability;      // 내구도  (없음 또는 무한대는 -1로 표시)
+    int build_cost;      // 건설 비용 (-1: 없음 또는 무한대)
+    int durability;      // 내구도 (-1: 없음 또는 무한대)
     char command;        // 명령어 단축키
     POSITION pos;        // 위치
     char repr;           // 맵에 표시되는 문자
     int background_color;
-    char player;            // 소속
+    char player;         // 소속
+    int layer;           // 레이어 (0: 건물, 스파이스)
 } BUILDING;
 
-// 유닛의 정보를 담는 구조체
 typedef struct {
     char name[20];       // 이름
-    int production_cost; // 생산 비용  (없음 또는 무한대는 -1로 표시)
-    int population_cost; // 인구 수  (없음 또는 무한대는 -1로 표시)
-    int next_move_time;     // 이동 주기
-    int attack_power;    // 공격력  (없음 또는 무한대는 -1로 표시)
+    int production_cost; // 생산 비용 (-1: 없음 또는 무한대)
+    int population_cost; // 인구 수 (-1: 없음 또는 무한대)
+    int next_move_time;  // 이동 주기
+    int attack_power;    // 공격력 (-1: 없음 또는 무한대)
     int attack_period;   // 공격 주기
-    int health;          // 체력  (없음 또는 무한대는 -1로 표시)
-    int vision;          // 시야  (없음 또는 무한대는 -1로 표시)
+    int health;          // 체력 (-1: 없음 또는 무한대)
+    int vision;          // 시야 (-1: 없음 또는 무한대)
     char commands[2];    // 명령어 단축키
-    POSITION pos;         // 현재 위치
-    POSITION dest;        // 목적지 (목표 위치)
-    int speed;   // 다음 이동 시간
-    char repr;            // 유닛을 맵에 표시하는 문자
+    POSITION pos;        // 현재 위치
+    POSITION dest;       // 목적지 (목표 위치)
+    int speed;           // 이동 속도
+    char repr;           // 맵에 표시되는 문자
     int background_color;
-    char player;             // 소속
-    bool has_contacted_spice;  // 스파이스와 접촉했는지 여부
+    char player;         // 소속
+    bool has_contacted_spice; // 스파이스 접촉 여부
+    bool active;         // 활성화 여부
+    int length;          // 유닛의 길이 (샌드웜용)
+    int layer;           // 레이어 (1: 지상, 2: 공중)
+    bool can_consume;    // 다른 유닛 소비 가능 여부 (샌드웜용)
+    bool can_spawn_spice; // 스파이스 생성 가능 여부 (샌드웜용)
 } UNIT;
 
 typedef struct {
-    int quantity;  // 매장량, 9에서 1까지 감소
-    POSITION pos;  // 스파이스 위치
+    int quantity;       // 스파이스 매장량
+    POSITION pos;       // 위치
+    int spawn_rate;     // 생성 주기
 } SPICE;
+
+typedef struct {
+    char messages[100][100]; // 메시지 로그 배열 (최대 100줄)
+    int message_count;       // 현재 메시지 수
+} MESSAGE_LOG;
 
 #endif

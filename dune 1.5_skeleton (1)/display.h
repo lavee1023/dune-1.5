@@ -24,6 +24,8 @@
 #define COLOR_ROCK 8
 #define COLOR_DEFAULT 15
 #define COLOR_SPICE 12
+#define COLOR_EAGLE 7
+#define COLOR_SANDSTORM 6
 
 // 앞으로 화면에 표시할 내용들 여기에 추가하기
 void display(
@@ -32,5 +34,9 @@ void display(
     CURSOR cursor,
     bool show_1
 );
+
+void display_object_info(bool show_info, CURSOR cursor, char map[N_LAYER][MAP_HEIGHT][MAP_WIDTH]);
+void display_commands(CURSOR cursor, char map[N_LAYER][MAP_HEIGHT][MAP_WIDTH], bool show_1);
+void set_background_color(int color, unsigned short back);
 
 #endif
