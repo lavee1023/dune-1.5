@@ -4,7 +4,6 @@
 #include "common.h"
 #include "io.h"
 #include "display.h"
-#include "engine.h"
 
 void init(void);
 void intro(void);
@@ -13,6 +12,7 @@ void cursor_move(DIRECTION dir);
 POSITION sample_obj_next_position(UNIT* obj);
 void set_building_position(BUILDING* building, int row, int column, int size);
 void set_unit_position(UNIT* unit, int row, int column);
+void set_unit_position2(UNIT* unit, int row, int column);
 void set_color_map(int color, unsigned short back);
 void game_tick(void);
 void create_spice(SPICE* spice, int row, int column);
@@ -27,7 +27,7 @@ CURSOR cursor = { { 1, 1 }, {1, 1} };
 char map[N_LAYER][MAP_HEIGHT][MAP_WIDTH] = { 0 };
 
 RESOURCE resource = {
-	.spice = 0,
+	.spice = 5,
 	.spice_max = 0,
 	.population = 0,
 	.population_max = 0
@@ -100,6 +100,11 @@ BUILDING neutral_buildings[NUM_NEUTRAL_BUILDINGS] = {
 UNIT sandworms[MAX_SANDWORMS] = {
 	{ "Sandworm", -1, -1, 2500, -1, 10000, -1, -1, {'\0', '\0'}, {-1, -1}, {-1, -1}, 2500, 'W', COLOR_WORM, 'W', false, true },
 	{ "Sandworm", -1, -1, 2500, -1, 10000, -1, -1, {'\0', '\0'}, {-1, -1}, {-1, -1}, 2500, 'W', COLOR_WORM, 'W', false, true }
+};
+
+#define MAX_EAGLES 2
+UNIT eagle[MAX_EAGLES] = {
+	{ "Eagle", -1, -1, 500, -1, 0, -1, -1, {'\0', '\0'}, {-1, -1}, {-1, -1}, 500, 'E', COLOR_EAGLE, 'W', false, true }
 };
 
 // =================== 스파이스 배열 ===================
@@ -213,6 +218,7 @@ void init(void) {
 	set_unit_position(&sandworms[1], 13, MAP_WIDTH - 13);      // 두 번째 샌드웜
 	set_unit_position(&harkonnen_units[0], 5, 24);             // harkonnen_Fighter
 	set_unit_position(&harkonnen_units[0], 10, 24);             // harkonnen_Fighter
+	set_unit_position2(&eagle[0], 10, 10);
 
 	// 건물 및 스파이스 초기 위치 설정
 	set_building_position(&atreides_buildings[2], MAP_HEIGHT - 3, 1, 2);  // atreides_Base
@@ -310,6 +316,19 @@ void set_unit_position(UNIT* unit, int row, int column) {
 	}
 }
 
+void set_unit_position2(UNIT* unit, int row, int column) {
+	// 유닛이 맵 범위 내에 위치할 수 있는지 확인
+	if (row >= 1 && row < MAP_HEIGHT - 1 && column >= 1 && column < MAP_WIDTH - 1) {
+		unit->pos.row = row;
+		unit->pos.column = column;
+		unit->active = true;  // 유닛 활성화
+
+		map[1][row][column] = unit->repr;
+
+		// 유닛의 배경색 설정
+		set_color_map(unit->background_color, 1);
+	}
+}
 
 // 스파이스를 생성하는 함수
 void create_spice(SPICE* spice, int row, int column) {
@@ -623,6 +642,34 @@ void unit_move(UNIT* obj) {
 	obj->next_move_time = sys_clock + obj->speed;
 }
 
+void move_unit_randomly(UNIT* eagle) {
+	if (sys_clock <= eagle->next_move_time) {
+		return;
+	}
+
+	map[1][eagle->pos.row][eagle->pos.column] = -1;
+
+	int direction = rand() % 4;
+	int new_row = eagle->pos.row;
+	int new_column = eagle->pos.column;
+
+	switch (direction) {
+	case 0: new_row--; break;
+	case 1: new_row++; break;
+	case 2: new_column--; break;
+	case 3: new_column++; break;
+	}
+
+	if (new_row >= 1 && new_row < MAP_HEIGHT - 1 &&
+		new_column >= 1 && new_column < MAP_WIDTH - 1) {
+		// 기존 위치 초기화
+		map[eagle->layer - 1][eagle->pos.row][eagle->pos.column] = ' ';
+		// 새 위치 설정
+		set_unit_position2(eagle, new_row, new_column);
+	}
+
+	eagle->next_move_time = sys_clock + eagle->speed;
+}
 
 // 유닛 초기화 함수
 void initialize_units(void) {
@@ -645,10 +692,46 @@ void initialize_units(void) {
 
 void initialize_game(void) {
 	current_atreides_units = 1;  // 초기 생성된 아트레이디스 유닛 수
-	current_harkonnen_units = 2; // 초기 생성된 하코넨 유닛 수
+	current_harkonnen_units = 3; // 초기 생성된 하코넨 유닛 수
 
 	initialize_units();          // 모든 유닛 비활성화 및 초기화
 	// 추가 초기화 코드
+}
+
+// 유닛 생산 관련 변수
+int unit_production_time[MAX_ATREIDES_UNITS] = { 0 };
+bool is_unit_being_produced[MAX_ATREIDES_UNITS] = { false };
+
+void complete_unit_production(int unit_index) {
+	UNIT* unit_to_produce = &atreides_units[unit_index];
+
+	BUILDING* building = &atreides_buildings[unit_to_produce->layer];
+	POSITION spawn_position = { building->pos.row, building->pos.column + 1 };
+	set_unit_position(unit_to_produce, spawn_position.row, spawn_position.column);
+}
+
+void start_unit_production(char building_type) {
+
+	UNIT* unit_to_produce = NULL;
+
+	switch (building_type) {
+	case 'b':
+		unit_to_produce = &atreides_units[current_atreides_units];
+		if (resource.spice >= unit_to_produce->production_cost) {
+			resource.spice -= unit_to_produce->production_cost;
+			is_unit_being_produced[current_atreides_units] = true;
+			unit_production_time[current_atreides_units] = 1000;
+			current_atreides_units++;
+			set_unit_position(&atreides_units[2], MAP_HEIGHT - 4, 2);
+			printf("A new %s is being produced!\n", unit_to_produce->name);
+		}
+		else {
+			printf("Not enough spice.\n");
+		}
+		break;
+	default:
+		break;
+	}
 }
 
 void game_tick(void) {
@@ -656,6 +739,16 @@ void game_tick(void) {
 	for (int i = 0; i < current_atreides_units; i++) {
 		if (atreides_units[i].active) {  // 활성화된 유닛만 이동
 			unit_move(&atreides_units[i], &atreides_moving_to_spice[i]);
+		}
+	}
+
+	for (int i = 0; i < MAX_ATREIDES_UNITS; i++) {
+		if (is_unit_being_produced[i]) {
+			unit_production_time[i]--;
+			if (unit_production_time[i] <= 0) {
+				is_unit_being_produced[i] = false;
+				complete_unit_production(i);  // 생산 완료 후 유닛을 맵에 추가
+			}
 		}
 	}
 
@@ -668,5 +761,9 @@ void game_tick(void) {
 
 	for (int i = 0; i < MAX_SANDWORMS; i++) {
 		sandworm_move(&sandworms[i]);
+	}
+
+	for (int i = 0; i < MAX_EAGLES; i++) {
+		move_unit_randomly(&eagle[i]);
 	}
 }
